@@ -1,6 +1,6 @@
 # DIGITAL LITERACY I — SS 2026
 
-Eine historische Untersuchung von Maker- und Hackerspaces mit interaktivem **Voting Wheel**.
+**Voting Wheel**.
 
 ## Live-Demo
 
