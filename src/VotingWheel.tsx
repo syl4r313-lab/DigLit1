@@ -299,9 +299,9 @@ export default function VotingWheel() {
                 ✶ Gewinner ✶
               </motion.div>
               {question && (
-                <motion.div className="text-sm text-white/40 font-light mb-6 italic leading-relaxed"
+                <motion.div className="text-base text-white/75 font-medium mb-6 leading-relaxed"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
-                  „{question}“
+                  „{question}"
                 </motion.div>
               )}
               <motion.div
@@ -317,7 +317,7 @@ export default function VotingWheel() {
                 <motion.div className="text-white/30 font-mono text-sm"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
                   {winner.votes} Stimme{winner.votes !== 1 ? 'n' : ''}
-                  {totalVotes > 0 && ` · ${Math.round((winner.votes / totalVotes) * 100)} %`}
+                  {totalVotes > 0 && ` · ${Math.round((winner.votes / totalVotes) * 100)} %`}
                 </motion.div>
               )}
               <motion.button
@@ -334,10 +334,10 @@ export default function VotingWheel() {
 
       <section>
         <div className="mb-10">
-          <label className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-3 block">Abstimmungsfrage</label>
+          <label className="text-[10px] font-mono text-white/60 uppercase tracking-[0.3em] mb-3 block">Abstimmungsfrage</label>
           <input type="text" value={question} onChange={e => setQuestion(e.target.value)}
-            placeholder="z. B. Welches Thema behandeln wir zuerst?" maxLength={80}
-            className="w-full px-5 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-accent/40 transition-all text-base font-light"
+            placeholder="z. B. Welches Thema behandeln wir zuerst?" maxLength={80}
+            className="w-full px-5 py-3.5 bg-white/[0.06] border border-white/25 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-accent/60 transition-all text-base font-light"
           />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
@@ -385,7 +385,7 @@ export default function VotingWheel() {
             </AnimatePresence>
           </div>
           <div className="space-y-3">
-            <div className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-6">Optionen &amp; Stimmen // {options.length} / 8</div>
+            <div className="text-[10px] font-mono text-white/60 uppercase tracking-[0.3em] mb-6">Optionen &amp; Stimmen // {options.length} / 8</div>
             <AnimatePresence mode="popLayout">
               {options.map((opt, i) => (
                 <motion.div key={opt.id} layout
@@ -409,7 +409,7 @@ export default function VotingWheel() {
               <div className="flex gap-2 pt-2">
                 <input type="text" value={newLabel} onChange={e => setNewLabel(e.target.value)} onKeyDown={e => e.key === 'Enter' && addOption()}
                   placeholder="Neue Option hinzufügen..." maxLength={25}
-                  className="flex-1 min-w-0 px-4 py-2.5 bg-white/[0.03] border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-accent/30 transition-all"
+                  className="flex-1 min-w-0 px-4 py-2.5 bg-white/[0.06] border border-white/25 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent/50 transition-all"
                 />
                 <button onClick={addOption} disabled={!newLabel.trim()} className="p-2.5 border border-accent/20 bg-accent/5 text-accent hover:bg-accent/10 rounded-xl transition-all disabled:opacity-30 flex-shrink-0">
                   <Plus className="w-4 h-4" />
