@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useAnimate } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useAnimate, useMotionValueEvent } from 'motion/react';
 import { Plus, Trash2, RotateCcw, Play, Square, X } from 'lucide-react';
 
 const COLORS = ['#00FFC2','#FF6B6B','#FFD93D','#4D96FF','#C77DFF','#FF9F1C','#6BCB77','#F72585'];
@@ -48,6 +48,86 @@ function buildSlices(opts: Option[]): Slice[] {
   });
 }
 
+// ── Audio helpers ─────────────────────────────────────────────
+
+function getCtx(ref: React.MutableRefObject<AudioContext | null>): AudioContext | null {
+  try {
+    if (!ref.current) ref.current = new AudioContext();
+    if (ref.current.state === 'suspended') ref.current.resume();
+    return ref.current;
+  } catch { return null; }
+}
+
+function playClick(ctx: AudioContext, vol = 0.18) {
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(700, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.022);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.022);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.025);
+  } catch { /* ignore */ }
+}
+
+function scheduleNoiseHit(ctx: AudioContext, time: number, vol: number, dur: number) {
+  const bufSize = Math.ceil(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let j = 0; j < bufSize; j++) data[j] = Math.random() * 2 - 1;
+
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.setValueAtTime(180, time);
+  filt.Q.setValueAtTime(0.7, time);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(vol, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+  src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+  src.start(time);
+  src.stop(time + dur + 0.01);
+}
+
+function playDrumRoll(ctx: AudioContext, duration: number, onEnd: () => void) {
+  const hits = 28;
+  for (let i = 0; i < hits; i++) {
+    const progress = i / hits;
+    const t = ctx.currentTime + Math.pow(progress, 0.65) * duration;
+    const vol = 0.08 + progress * 0.35;
+    const dur = 0.055 - progress * 0.025;
+    scheduleNoiseHit(ctx, t, vol, Math.max(dur, 0.015));
+  }
+  scheduleNoiseHit(ctx, ctx.currentTime + duration, 0.5, 0.12);
+  setTimeout(onEnd, (duration + 0.15) * 1000);
+}
+
+function playFanfare(ctx: AudioContext) {
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t = ctx.currentTime + i * 0.11;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.14, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    osc.start(t); osc.stop(t + 0.35);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+
 export default function VotingWheel() {
   const [options, setOptions] = useState<Option[]>([
     { id: 1, label: 'Option A', votes: 0 },
@@ -57,18 +137,50 @@ export default function VotingWheel() {
   const [question, setQuestion] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
   const [winner, setWinner] = useState<Slice | null>(null);
   const [explodeKey, setExplodeKey] = useState(0);
 
   const rotation = useMotionValue(0);
   const [, animateValue] = useAnimate();
   const animRef = useRef<any>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const nextId = useRef(4);
   const optionsRef = useRef(options);
+  const prevRotSlot = useRef(0);
   useEffect(() => { optionsRef.current = options; }, [options]);
 
   const totalVotes = options.reduce((sum, o) => sum + o.votes, 0);
   const slices = buildSlices(options);
+
+  useMotionValueEvent(rotation, 'change', (value) => {
+    const INTERVAL = 14;
+    const slot = Math.floor(Math.abs(value) / INTERVAL);
+    if (slot !== prevRotSlot.current) {
+      prevRotSlot.current = slot;
+      const ctx = getCtx(audioCtxRef);
+      if (ctx) playClick(ctx);
+    }
+  });
+
+  const revealWinner = useCallback((w: Slice) => {
+    setIsRevealing(true);
+    const ctx = getCtx(audioCtxRef);
+    if (ctx) {
+      playDrumRoll(ctx, 2.2, () => {
+        setIsRevealing(false);
+        setWinner(w);
+        setExplodeKey(k => k + 1);
+        playFanfare(ctx);
+      });
+    } else {
+      setTimeout(() => {
+        setIsRevealing(false);
+        setWinner(w);
+        setExplodeKey(k => k + 1);
+      }, 2200);
+    }
+  }, []);
 
   const determineWinner = useCallback((opts: Option[]) => {
     const curr = rotation.get();
@@ -76,12 +188,13 @@ export default function VotingWheel() {
     const pointerAt = (360 - norm) % 360;
     const s = buildSlices(opts);
     const w = s.find(sl => pointerAt >= sl.start && pointerAt < sl.start + sl.sweep) ?? s[0];
-    setWinner(w);
-    setExplodeKey(k => k + 1);
-  }, [rotation]);
+    revealWinner(w);
+  }, [rotation, revealWinner]);
 
   const spinWheel = () => {
-    if (isSpinning) return;
+    if (isSpinning || isRevealing) return;
+    const ctx = getCtx(audioCtxRef);
+    void ctx;
     setIsSpinning(true);
     setWinner(null);
     const target = rotation.get() + 1800 + Math.random() * 1440;
@@ -114,7 +227,33 @@ export default function VotingWheel() {
 
   return (
     <>
-      {/* Winner overlay */}
+      <AnimatePresence>
+        {isRevealing && (
+          <motion.div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm gap-6"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="text-[11px] font-mono text-accent uppercase tracking-[0.5em]"
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 0.6, repeat: Infinity }}
+            >
+              Trommelwirbel...
+            </motion.div>
+            <div className="flex gap-2">
+              {[0,1,2,3,4].map(i => (
+                <motion.div
+                  key={i}
+                  className="w-2 h-8 rounded-full bg-accent"
+                  animate={{ scaleY: [0.3, 1, 0.3] }}
+                  transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.08 }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {winner && (
           <motion.div
@@ -123,8 +262,6 @@ export default function VotingWheel() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <motion.div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setWinner(null)} />
-
-            {/* Confetti particles */}
             {PARTICLES.map(p => (
               <motion.div
                 key={`p-${p.id}-${explodeKey}`}
@@ -135,8 +272,6 @@ export default function VotingWheel() {
                 transition={{ duration: 1.5, delay: p.delay, ease: 'easeOut' }}
               />
             ))}
-
-            {/* Expanding rings */}
             {[...Array(8)].map((_, i) => (
               <motion.div
                 key={`ring-${i}-${explodeKey}`}
@@ -147,8 +282,6 @@ export default function VotingWheel() {
                 transition={{ duration: 1.2, delay: i * 0.06, ease: 'easeOut' }}
               />
             ))}
-
-            {/* Winner card */}
             <motion.div
               className="relative z-10 text-center px-12 py-10 rounded-3xl border-2 bg-[#050505] max-w-md mx-4 w-full"
               style={{ borderColor: winner.color, boxShadow: `0 0 80px ${winner.color}50` }}
@@ -161,24 +294,16 @@ export default function VotingWheel() {
               <button onClick={() => setWinner(null)} className="absolute top-4 right-4 p-1.5 text-white/20 hover:text-white/60 transition-colors">
                 <X className="w-4 h-4" />
               </button>
-
-              <motion.div
-                className="text-[11px] font-mono uppercase tracking-[0.4em] mb-4"
-                style={{ color: winner.color }}
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-              >
+              <motion.div className="text-[11px] font-mono uppercase tracking-[0.4em] mb-4" style={{ color: winner.color }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 ✶ Gewinner ✶
               </motion.div>
-
               {question && (
-                <motion.div
-                  className="text-sm text-white/40 font-light mb-6 italic leading-relaxed"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
-                >
+                <motion.div className="text-sm text-white/40 font-light mb-6 italic leading-relaxed"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
                   „{question}“
                 </motion.div>
               )}
-
               <motion.div
                 className="text-5xl md:text-6xl font-black uppercase leading-none mb-4"
                 style={{ color: winner.color }}
@@ -188,17 +313,13 @@ export default function VotingWheel() {
               >
                 {winner.label}
               </motion.div>
-
               {winner.votes > 0 && (
-                <motion.div
-                  className="text-white/30 font-mono text-sm"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-                >
+                <motion.div className="text-white/30 font-mono text-sm"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
                   {winner.votes} Stimme{winner.votes !== 1 ? 'n' : ''}
                   {totalVotes > 0 && ` · ${Math.round((winner.votes / totalVotes) * 100)} %`}
                 </motion.div>
               )}
-
               <motion.button
                 onClick={() => setWinner(null)}
                 className="mt-8 px-6 py-2 border border-white/10 text-white/30 hover:text-white/70 hover:border-white/30 text-[11px] font-mono uppercase tracking-widest rounded-full transition-all"
@@ -211,24 +332,15 @@ export default function VotingWheel() {
         )}
       </AnimatePresence>
 
-      {/* Main layout */}
       <section>
         <div className="mb-10">
-          <label className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-3 block">
-            Abstimmungsfrage
-          </label>
-          <input
-            type="text"
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            placeholder="z. B. Welches Thema behandeln wir zuerst?"
-            maxLength={80}
+          <label className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-3 block">Abstimmungsfrage</label>
+          <input type="text" value={question} onChange={e => setQuestion(e.target.value)}
+            placeholder="z. B. Welches Thema behandeln wir zuerst?" maxLength={80}
             className="w-full px-5 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-accent/40 transition-all text-base font-light"
           />
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
-          {/* Wheel */}
           <div className="flex flex-col items-center gap-6">
             <div className="relative w-[400px] max-w-full">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none" style={{ filter: 'drop-shadow(0 0 8px #00FFC2)' }}>
@@ -254,12 +366,11 @@ export default function VotingWheel() {
                 </svg>
               </motion.div>
             </div>
-
             <AnimatePresence mode="wait">
               {!isSpinning ? (
-                <motion.button key="spin" onClick={spinWheel}
+                <motion.button key="spin" onClick={spinWheel} disabled={isRevealing}
                   initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex items-center gap-3 px-8 py-3 border border-accent/40 bg-accent/5 hover:bg-accent/10 text-accent font-bold text-sm uppercase tracking-[0.2em] rounded-full transition-all"
+                  className="flex items-center gap-3 px-8 py-3 border border-accent/40 bg-accent/5 hover:bg-accent/10 text-accent font-bold text-sm uppercase tracking-[0.2em] rounded-full transition-all disabled:opacity-30"
                 >
                   <Play className="w-4 h-4 fill-current" /> Rad drehen
                 </motion.button>
@@ -273,12 +384,8 @@ export default function VotingWheel() {
               )}
             </AnimatePresence>
           </div>
-
-          {/* Options panel */}
           <div className="space-y-3">
-            <div className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-6">
-              Optionen &amp; Stimmen // {options.length} / 8
-            </div>
+            <div className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em] mb-6">Optionen &amp; Stimmen // {options.length} / 8</div>
             <AnimatePresence mode="popLayout">
               {options.map((opt, i) => (
                 <motion.div key={opt.id} layout
