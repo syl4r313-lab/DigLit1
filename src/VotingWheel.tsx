@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useAnimate, useMotionValueEvent } from 'motion/react';
-import { Plus, Trash2, RotateCcw, Play, Square, X } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Play, Square, X, Pencil } from 'lucide-react';
 
 const COLORS = ['#00FFC2','#FF6B6B','#FFD93D','#4D96FF','#C77DFF','#FF9F1C','#6BCB77','#F72585'];
 
@@ -62,7 +62,6 @@ function getCtx(ref: React.MutableRefObject<AudioContext | null>): AudioContext 
 function playTick(ctx: AudioContext) {
   try {
     const now = ctx.currentTime;
-    // Body: low sine that quickly drops in pitch (the peg resonance)
     const osc = ctx.createOscillator();
     const env = ctx.createGain();
     osc.type = 'sine';
@@ -73,7 +72,6 @@ function playTick(ctx: AudioContext) {
     osc.connect(env); env.connect(ctx.destination);
     osc.start(now); osc.stop(now + 0.048);
 
-    // Attack transient: tiny filtered noise burst
     const bufLen = Math.ceil(ctx.sampleRate * 0.011);
     const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -325,7 +323,6 @@ export default function VotingWheel() {
   const totalVotes = options.reduce((sum, o) => sum + o.votes, 0);
   const slices = buildSlices(options);
 
-  // Tick every 20° for a natural click rhythm at the new slower speed
   useMotionValueEvent(rotation, 'change', (value) => {
     const slot = Math.floor(Math.abs(value) / 20);
     if (slot !== prevRotSlot.current) {
@@ -359,11 +356,10 @@ export default function VotingWheel() {
     if (isSpinning || isRevealing) return;
     void getCtx(audioCtxRef);
     setIsSpinning(true); setWinner(null);
-    // 4–6 full rotations, 6 second duration — satisfying, not rushed
     const target = rotation.get() + 1440 + Math.random() * 720;
     animRef.current = animateValue(rotation, target, {
       duration: 6,
-      ease: [0.05, 0.82, 0.22, 1], // fast start → long natural deceleration
+      ease: [0.05, 0.82, 0.22, 1],
       onComplete: () => { setIsSpinning(false); determineWinner(optionsRef.current); },
     });
   };
@@ -391,7 +387,6 @@ export default function VotingWheel() {
         )}
       </AnimatePresence>
 
-      {/* Drum roll overlay */}
       <AnimatePresence>
         {isRevealing && (
           <motion.div
@@ -413,7 +408,6 @@ export default function VotingWheel() {
         )}
       </AnimatePresence>
 
-      {/* Winner overlay */}
       <AnimatePresence>
         {winner && (
           <motion.div key={`overlay-${explodeKey}`}
@@ -504,10 +498,8 @@ export default function VotingWheel() {
         )}
       </AnimatePresence>
 
-      {/* ── Voting Screen ── */}
       {screen === 'voting' && (
         <>
-          {/* Background stars — same as onboarding for visual continuity */}
           {STARS.map(s => (
             <motion.div key={`vs-${s.id}`} className="fixed pointer-events-none"
               style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, backgroundColor: s.color, imageRendering: 'pixelated', zIndex: 1 }}
@@ -520,29 +512,42 @@ export default function VotingWheel() {
             {/* Question banner */}
             <motion.div className="mb-10"
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="flex items-center mb-2">
-                <span className="text-[9px] font-mono uppercase tracking-[0.45em]"
-                  style={{ color: 'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
-                <button
-                  onClick={() => setScreen('onboarding')}
-                  className="ml-auto text-[9px] font-mono uppercase tracking-widest transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.18)' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = 'rgba(0,255,194,0.7)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.18)'; }}
-                >← ändern</button>
-              </div>
-              <div className="px-5 py-4 flex items-start gap-3" style={{
+              <span className="text-[9px] font-mono uppercase tracking-[0.45em] mb-2 block"
+                style={{ color: 'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
+              <div style={{
                 background: 'rgba(0,255,194,0.04)',
                 border: '2px solid rgba(0,255,194,0.2)',
                 boxShadow: '3px 3px 0 rgba(0,255,194,0.07)',
               }}>
-                <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color: 'rgba(0,255,194,0.6)' }}>▶</span>
-                <p className="text-white text-lg font-semibold leading-snug">{question}</p>
+                <div className="px-5 py-4 flex items-start gap-3">
+                  <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color: 'rgba(0,255,194,0.6)' }}>▶</span>
+                  <p className="text-white text-lg font-semibold leading-snug">{question}</p>
+                </div>
+                <button
+                  onClick={() => setScreen('onboarding')}
+                  className="w-full py-3 flex items-center justify-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.35em] font-black transition-all"
+                  style={{
+                    borderTop: '2px solid rgba(255,211,61,0.25)',
+                    color: '#FFD93D',
+                    background: 'rgba(255,211,61,0.06)',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255,211,61,0.14)';
+                    e.currentTarget.style.boxShadow = 'inset 0 2px 0 rgba(255,211,61,0.1)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255,211,61,0.06)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Frage ändern
+                </button>
               </div>
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
-              {/* Wheel column */}
               <div className="flex flex-col items-center gap-6">
                 <div className="relative w-[400px] max-w-full" style={{
                   padding: '10px',
@@ -609,7 +614,6 @@ export default function VotingWheel() {
                 </AnimatePresence>
               </div>
 
-              {/* Options column */}
               <div className="space-y-3">
                 <div className="font-mono text-[10px] uppercase tracking-[0.4em] mb-5"
                   style={{ color: 'rgba(255,255,255,0.55)' }}>
