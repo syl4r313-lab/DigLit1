@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useAnimate, useMotionValueEvent } from 'motion/react';
-import { Plus, Trash2, RotateCcw, Play, Square, X } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Play, Square, X, Pencil } from 'lucide-react';
 
 const COLORS = ['#00FFC2','#FF6B6B','#FFD93D','#4D96FF','#C77DFF','#FF9F1C','#6BCB77','#F72585'];
 
@@ -520,24 +520,38 @@ export default function VotingWheel() {
             {/* Question banner */}
             <motion.div className="mb-10"
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="flex items-center mb-2">
-                <span className="text-[9px] font-mono uppercase tracking-[0.45em]"
-                  style={{ color: 'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
-                <button
-                  onClick={() => setScreen('onboarding')}
-                  className="ml-auto text-[9px] font-mono uppercase tracking-widest transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.18)' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = 'rgba(0,255,194,0.7)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.18)'; }}
-                >← ändern</button>
-              </div>
-              <div className="px-5 py-4 flex items-start gap-3" style={{
+              <span className="text-[9px] font-mono uppercase tracking-[0.45em] mb-2 block"
+                style={{ color: 'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
+              <div style={{
                 background: 'rgba(0,255,194,0.04)',
                 border: '2px solid rgba(0,255,194,0.2)',
                 boxShadow: '3px 3px 0 rgba(0,255,194,0.07)',
               }}>
-                <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color: 'rgba(0,255,194,0.6)' }}>▶</span>
-                <p className="text-white text-lg font-semibold leading-snug">{question}</p>
+                <div className="px-5 py-4 flex items-start gap-3">
+                  <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color: 'rgba(0,255,194,0.6)' }}>▶</span>
+                  <p className="text-white text-lg font-semibold leading-snug">{question}</p>
+                </div>
+                <button
+                  onClick={() => setScreen('onboarding')}
+                  className="w-full py-3 flex items-center justify-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.35em] font-black transition-all"
+                  style={{
+                    borderTop: '2px solid rgba(255,211,61,0.25)',
+                    color: '#FFD93D',
+                    background: 'rgba(255,211,61,0.06)',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255,211,61,0.14)';
+                    e.currentTarget.style.boxShadow = 'inset 0 2px 0 rgba(255,211,61,0.1)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255,211,61,0.06)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Frage ändern
+                </button>
               </div>
             </motion.div>
 
