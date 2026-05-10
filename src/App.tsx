@@ -7,23 +7,43 @@ import VotingWheel from './VotingWheel';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-[#050505] text-[#d1d5db] font-sans overflow-x-hidden">
-      <div className="fixed inset-0 bg-dot-grid opacity-10 pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,#00FFC208_0%,transparent_60%)] pointer-events-none" />
+    <div
+      className="min-h-screen text-[#d1d5db] font-sans overflow-x-hidden"
+      style={{
+        background: '#0c0a18',
+        backgroundImage: [
+          'linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px)',
+          'linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)',
+        ].join(','),
+        backgroundSize: '8px 8px',
+      }}
+    >
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(0,255,194,0.05) 0%, transparent 55%)' }}
+      />
 
-      <header className="border-b border-white/10 bg-[#050505]/80 backdrop-blur-xl">
+      <header
+        className="sticky top-0 z-30 backdrop-blur-xl"
+        style={{ borderBottom: '2px solid rgba(255,255,255,0.07)', background: 'rgba(12,10,24,0.92)' }}
+      >
         <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] tracking-[0.25em] text-accent font-mono uppercase">
-              C.Voigt // B.Mertens
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] tracking-[0.55em] font-mono uppercase" style={{ color: 'rgba(0,255,194,0.5)' }}>
+              C.Voigt ❆ B.Mertens
             </span>
-            <h1 className="text-xl font-bold tracking-[0.1em] text-white uppercase">
-              Literacy Spin <span className="text-accent">SS 2026</span>
+            <h1 className="text-xl font-black tracking-[0.08em] text-white uppercase font-mono leading-none">
+              Literacy Spin <span style={{ color: '#FFD93D' }}>SS 2026</span>
             </h1>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-white/10 rounded-full bg-white/5">
-            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-            <span className="text-[10px] font-mono text-white/50 uppercase tracking-widest">Live</span>
+          <div
+            className="flex items-center gap-2 px-3 py-1.5"
+            style={{ border: '2px solid rgba(0,255,194,0.18)', background: 'rgba(0,255,194,0.04)' }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#00FFC2' }} />
+            <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              Live
+            </span>
           </div>
         </div>
       </header>
@@ -32,10 +52,10 @@ export default function App() {
         <VotingWheel />
       </main>
 
-      <footer className="border-t border-white/5 py-8 mt-20">
+      <footer className="py-8 mt-20" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="max-w-5xl mx-auto px-6 text-center">
-          <span className="text-[10px] font-mono text-white/15 uppercase tracking-[0.3em]">
-            Literacy Spin SS 2026 // C.Voigt // B.Mertens
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em]" style={{ color: 'rgba(255,255,255,0.12)' }}>
+            Literacy Spin SS 2026 ❆ C.Voigt ❆ B.Mertens
           </span>
         </div>
       </footer>
