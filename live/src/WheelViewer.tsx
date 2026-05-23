@@ -80,7 +80,7 @@ const STARS = Array.from({ length: 28 }, (_, i) => ({
   dur: 1.5 + (i * 23 % 200) / 100,
 }));
 
-// ── Waiting screen shown before admin starts ─────────────────
+// ── Warte-Screen (vor Sessionstart) ───────────────────────────
 
 function WaitingScreen() {
   return (
@@ -107,19 +107,13 @@ function WaitingScreen() {
           transition={{ duration: s.dur, delay: s.delay, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
-
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse 75% 75% at 50% 50%, transparent 20%, #0c0a18 90%)' }} />
-
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
-          style={{ filter: 'drop-shadow(0 0 18px rgba(0,255,194,0.35))' }}
-        >
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
+          style={{ filter: 'drop-shadow(0 0 18px rgba(0,255,194,0.35))' }}>
           <PixelWheelArt px={10} />
         </motion.div>
-
         <div className="space-y-2">
           <p className="font-mono text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(0,255,194,0.55)' }}>
             C.Voigt ❆ B.Mertens
@@ -128,33 +122,18 @@ function WaitingScreen() {
             style={{ fontSize: 'clamp(1.7rem, 7vw, 2.4rem)', letterSpacing: '0.1em' }}>
             LITERACY<br />SPIN
           </h1>
-          <p className="font-mono font-bold tracking-[0.35em] text-lg" style={{ color: '#FFD93D' }}>
-            SS 2026
-          </p>
+          <p className="font-mono font-bold tracking-[0.35em] text-lg" style={{ color: '#FFD93D' }}>SS 2026</p>
         </div>
-
-        <div style={{
-          background: 'linear-gradient(145deg,#1c1732 0%,#130f26 100%)',
-          border: '2px solid rgba(255,255,255,0.08)',
-          boxShadow: '4px 4px 0 rgba(0,0,0,0.4)',
-          padding: '1.25rem 2rem',
-        }}>
+        <div style={{ background: 'linear-gradient(145deg,#1c1732 0%,#130f26 100%)', border: '2px solid rgba(255,255,255,0.08)', boxShadow: '4px 4px 0 rgba(0,0,0,0.4)', padding: '1.25rem 2rem' }}>
           <div className="flex items-center gap-3">
-            <motion.div
-              className="w-2 h-2"
-              style={{ background: '#00FFC2' }}
-              animate={{ opacity: [1, 0.2, 1] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            <span className="font-mono text-[11px] uppercase tracking-[0.4em]"
-              style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <motion.div className="w-2 h-2" style={{ background: '#00FFC2' }}
+              animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }} />
+            <span className="font-mono text-[11px] uppercase tracking-[0.4em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
               Warte auf Admin…
             </span>
           </div>
         </div>
-
-        <p className="font-mono text-[9px] tracking-[0.4em] uppercase"
-          style={{ color: 'rgba(255,255,255,0.1)' }}>
+        <p className="font-mono text-[9px] tracking-[0.4em] uppercase" style={{ color: 'rgba(255,255,255,0.1)' }}>
           Die Abstimmung startet in Kürze
         </p>
       </div>
@@ -162,10 +141,96 @@ function WaitingScreen() {
   );
 }
 
-// ── Main Viewer Component ──────────────────────────────
+// ── Intro-Screen (Frage anzeigen, bevor Viewer zur Abstimmung geht) ──
+
+function ViewerIntroScreen({ question, onReady }: { question: string; onReady: () => void }) {
+  return (
+    <motion.div
+      className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
+      style={{
+        background: '#0c0a18',
+        backgroundImage: [
+          'linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px)',
+          'linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)',
+        ].join(','),
+        backgroundSize: '8px 8px',
+        zIndex: 40,
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.35 } }}
+      transition={{ duration: 0.4 }}
+    >
+      {STARS.map(s => (
+        <motion.div key={`vi-${s.id}`} className="absolute pointer-events-none"
+          style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, backgroundColor: s.color, imageRendering: 'pixelated' }}
+          animate={{ opacity: [0.1, 0.85, 0.1], scale: [1, 1.4, 1] }}
+          transition={{ duration: s.dur, delay: s.delay, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ))}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse 75% 75% at 50% 50%, transparent 20%, #0c0a18 90%)' }} />
+
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6 w-full max-w-[380px]">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
+          style={{ filter: 'drop-shadow(0 0 18px rgba(0,255,194,0.35))' }}>
+          <PixelWheelArt px={10} />
+        </motion.div>
+
+        <div className="text-center space-y-1">
+          <p className="font-mono text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(0,255,194,0.55)' }}>
+            C.Voigt ❆ B.Mertens
+          </p>
+          <h1 className="font-black uppercase font-mono leading-none text-white"
+            style={{ fontSize: 'clamp(1.7rem, 7vw, 2.4rem)', letterSpacing: '0.1em' }}>
+            LITERACY<br />SPIN
+          </h1>
+          <p className="font-mono font-bold tracking-[0.35em] text-lg" style={{ color: '#FFD93D' }}>SS 2026</p>
+        </div>
+
+        <div className="w-full" style={{
+          background: 'linear-gradient(145deg,#1c1732 0%,#130f26 100%)',
+          border: '2px solid rgba(255,255,255,0.1)',
+          boxShadow: '4px 4px 0 rgba(0,255,194,0.1), 8px 8px 0 rgba(0,0,0,0.5)',
+          padding: '1.5rem',
+        }}>
+          <p className="font-mono text-[10px] uppercase tracking-[0.4em] mb-3"
+            style={{ color: 'rgba(255,255,255,0.38)' }}>
+            ▶ Abstimmungsfrage
+          </p>
+          <p className="text-white text-lg font-semibold leading-snug mb-5"
+            style={{ borderLeft: '3px solid rgba(0,255,194,0.5)', paddingLeft: '0.75rem' }}>
+            {question}
+          </p>
+          <motion.button
+            onClick={onReady}
+            whileHover={{ x: 1, y: 1, boxShadow: '3px 3px 0 rgba(0,255,194,0.16)' }}
+            whileTap={{ x: 4, y: 4, boxShadow: '0px 0px 0 rgba(0,255,194,0.16)' }}
+            className="w-full font-black font-mono uppercase"
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(0,255,194,0.09)',
+              border: '2px solid #00FFC2',
+              color: '#00FFC2',
+              letterSpacing: '0.38em',
+              fontSize: '0.72rem',
+              boxShadow: '4px 4px 0 rgba(0,255,194,0.16)',
+              borderRadius: 0,
+            }}
+          >
+            WEITER →
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main Viewer Component ──────────────────────────────────────
 
 export default function WheelViewer() {
   const [screen, setScreen] = useState<'waiting' | 'voting'>('waiting');
+  const [viewerReady, setViewerReady] = useState(false);
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<Option[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -178,6 +243,7 @@ export default function WheelViewer() {
   const rotation = useMotionValue(0);
   const [, animate] = useAnimate();
   const prevSpinRef = useRef<SpinEvent | null>(null);
+  const prevVoteSessionRef = useRef('');
 
   useEffect(() => {
     const sessionRef = ref(db, 'session');
@@ -185,41 +251,39 @@ export default function WheelViewer() {
       const data = snap.val();
       if (!data) return;
 
-      // Update question and options
       if (data.question) setQuestion(data.question);
       if (data.options && Array.isArray(data.options)) setOptions(data.options);
 
-      // Screen state
-      setScreen(data.screen === 'voting' ? 'voting' : 'waiting');
+      const newScreen: 'waiting' | 'voting' = data.screen === 'voting' ? 'voting' : 'waiting';
+      // When admin goes back to onboarding, reset viewer intro so they see it again next session
+      if (newScreen === 'waiting') setViewerReady(false);
+      setScreen(newScreen);
 
-      // Sync vote session — new ID means votes were reset, everyone can vote again
-      if (typeof data.voteSessionId === 'string' && data.voteSessionId) {
-        setVoteSessionId(prev => {
-          if (prev !== data.voteSessionId) {
-            const stored = localStorage.getItem(`ls_voted_${data.voteSessionId}`);
-            setVotedFor(stored ? Number(stored) : null);
-          }
-          return data.voteSessionId;
-        });
+      // New voteSessionId = new session → reset viewer state
+      const newVSId: string = typeof data.voteSessionId === 'string' ? data.voteSessionId : '';
+      if (newVSId && newVSId !== prevVoteSessionRef.current) {
+        prevVoteSessionRef.current = newVSId;
+        setVoteSessionId(newVSId);
+        setViewerReady(false);
+        const stored = localStorage.getItem(`ls_voted_${newVSId}`);
+        setVotedFor(stored ? Number(stored) : null);
+      } else if (!newVSId && !prevVoteSessionRef.current) {
+        // Legacy session without voteSessionId — check default key
+        const stored = localStorage.getItem('ls_voted_default');
+        if (stored) setVotedFor(Number(stored));
       }
 
-      // Sync wheel starting angle when not spinning
       if (typeof data.currentAngle === 'number' && !data.spin?.active) {
         rotation.set(data.currentAngle);
       }
 
-      // Handle spin animation sync
       const spin: SpinEvent | null = data.spin ?? null;
       const prevSpin = prevSpinRef.current;
 
       if (spin?.active && !prevSpin?.active) {
-        // New spin started — animate to the same target as admin
         const elapsed = Date.now() - spin.startedAt;
         const remainingMs = Math.max(400, spin.durationMs - elapsed);
-
-        // Jump to startAngle so our starting position matches admin's
         rotation.set(spin.startAngle);
-
         animate(rotation, spin.targetAngle, {
           duration: remainingMs / 1000,
           ease: [0.05, 0.82, 0.22, 1],
@@ -227,19 +291,13 @@ export default function WheelViewer() {
         });
         setIsSpinning(true);
       } else if (!spin?.active && prevSpin?.active) {
-        // Spin ended — make sure wheel is exactly at the final angle
-        if (typeof data.currentAngle === 'number') {
-          rotation.set(data.currentAngle);
-        }
+        if (typeof data.currentAngle === 'number') rotation.set(data.currentAngle);
         setIsSpinning(false);
       }
-
       prevSpinRef.current = spin;
 
-      // Handle winner overlay
       if (data.showWinner && data.winner) {
-        const isNewWinner = !prevExplodeRef.current;
-        if (isNewWinner) {
+        if (!prevExplodeRef.current) {
           setExplodeKey(k => k + 1);
           prevExplodeRef.current = true;
         }
@@ -249,17 +307,18 @@ export default function WheelViewer() {
         prevExplodeRef.current = false;
       }
     });
-
     return () => unsub();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const castVote = (id: number) => {
-    if (votedFor !== null || !voteSessionId) return;
-    localStorage.setItem(`ls_voted_${voteSessionId}`, String(id));
+    if (votedFor !== null) return;
+    // Works with or without voteSessionId (backward compat for sessions started before this feature)
+    const key = `ls_voted_${voteSessionId || 'default'}`;
+    localStorage.setItem(key, String(id));
     setVotedFor(id);
     runTransaction(ref(db, 'session/options'), (current) => {
-      if (current === null) return current;
+      if (current == null) return; // abort — no data yet
       const opts: Option[] = Array.isArray(current) ? current : Object.values(current);
       return opts.map((o: Option) => o.id === id ? { ...o, votes: (o.votes || 0) + 1 } : o);
     }).catch(console.error);
@@ -270,8 +329,16 @@ export default function WheelViewer() {
 
   return (
     <>
+      {/* Waiting screen — before admin starts */}
       <AnimatePresence>
         {screen === 'waiting' && <WaitingScreen />}
+      </AnimatePresence>
+
+      {/* Viewer intro — shows question, requires "Weiter" click */}
+      <AnimatePresence>
+        {screen === 'voting' && !viewerReady && (
+          <ViewerIntroScreen question={question} onReady={() => setViewerReady(true)} />
+        )}
       </AnimatePresence>
 
       {/* Winner overlay */}
@@ -303,7 +370,6 @@ export default function WheelViewer() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.1 }}
             >
-              {/* No close button for viewers — admin controls this */}
               <motion.div className="text-[11px] font-mono uppercase tracking-[0.4em] mb-4" style={{ color: winner.color }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 ✶ Gewinner ✶
@@ -339,8 +405,8 @@ export default function WheelViewer() {
         )}
       </AnimatePresence>
 
-      {/* ── Voting Screen ── */}
-      {screen === 'voting' && (
+      {/* ── Voting Screen (nur wenn Viewer "Weiter" geklickt hat) ── */}
+      {screen === 'voting' && viewerReady && (
         <>
           {STARS.map(s => (
             <motion.div key={`vs-${s.id}`} className="fixed pointer-events-none"
@@ -351,7 +417,6 @@ export default function WheelViewer() {
           ))}
 
           <section className="relative" style={{ zIndex: 10 }}>
-            {/* Question banner — read-only */}
             <motion.div className="mb-10"
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <span className="text-[9px] font-mono uppercase tracking-[0.45em] mb-2 block"
@@ -365,7 +430,7 @@ export default function WheelViewer() {
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
-              {/* Wheel column */}
+              {/* Wheel */}
               <div className="flex flex-col items-center gap-6">
                 <div className="relative w-[400px] max-w-full" style={{
                   padding: '10px',
@@ -408,8 +473,6 @@ export default function WheelViewer() {
                     </svg>
                   </motion.div>
                 </div>
-
-                {/* Spin status indicator */}
                 <AnimatePresence>
                   {isSpinning && (
                     <motion.div
@@ -418,24 +481,23 @@ export default function WheelViewer() {
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                     >
                       <motion.div className="w-2 h-2" style={{ background: '#00FFC2' }}
-                        animate={{ opacity: [1, 0.2, 1] }}
-                        transition={{ duration: 0.5, repeat: Infinity }} />
+                        animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 0.5, repeat: Infinity }} />
                       Dreht sich…
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              {/* Options column — with vote buttons */}
+              {/* Options + Vote buttons */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-5">
                   <div className="font-mono text-[10px] uppercase tracking-[0.4em]"
-                    style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    style={{ color: votedFor !== null ? '#00FFC2' : 'rgba(255,255,255,0.55)' }}>
                     {votedFor !== null ? '✓ Stimme abgegeben' : 'Wähle eine Option'}
                   </div>
                   <div className="font-mono text-[10px] uppercase tracking-[0.4em]"
                     style={{ color: 'rgba(255,255,255,0.3)' }}>
-                    {options.length} Optionen
+                    ∑ {totalVotes} Stimmen
                   </div>
                 </div>
 
@@ -498,11 +560,6 @@ export default function WheelViewer() {
                     Danke für deine Stimme!
                   </motion.div>
                 )}
-
-                <div className="pt-4 font-mono text-[10px] uppercase tracking-widest text-right"
-                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.18)' }}>
-                  ∑ {totalVotes} Stimmen
-                </div>
               </div>
             </div>
           </section>
