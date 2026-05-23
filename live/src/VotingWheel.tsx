@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useAnimate, useMotionValueEvent } from 'framer-motion';
 import { Plus, Trash2, RotateCcw, Play, Square, X, Pencil } from 'lucide-react';
-import { ref, set, update, get } from 'firebase/database';
+import { ref, set, update, get, runTransaction } from 'firebase/database';
 import { db } from './firebase';
 import type { Option } from './types';
 
@@ -45,6 +45,8 @@ function buildSlices(opts: Option[]): Slice[] {
   });
 }
 
+// ── Firebase helpers ───────────────────────────────────────────
+
 function writeOptions(options: Option[]) {
   set(ref(db, 'session/options'), options).catch(console.error);
 }
@@ -52,6 +54,8 @@ function writeOptions(options: Option[]) {
 function writeSession(data: Record<string, unknown>) {
   update(ref(db, 'session'), data).catch(console.error);
 }
+
+// ── Audio helpers ──────────────────────────────────────────────
 
 function getCtx(ref: React.MutableRefObject<AudioContext | null>): AudioContext | null {
   try {
@@ -73,6 +77,7 @@ function playTick(ctx: AudioContext) {
     env.gain.exponentialRampToValueAtTime(0.001, now + 0.042);
     osc.connect(env); env.connect(ctx.destination);
     osc.start(now); osc.stop(now + 0.048);
+
     const bufLen = Math.ceil(ctx.sampleRate * 0.011);
     const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -121,6 +126,8 @@ function playFanfare(ctx: AudioContext) {
     osc.start(t); osc.stop(t + 0.35);
   });
 }
+
+// ── Pixel Art ──────────────────────────────────────────────────
 
 function PixelWheelArt({ px = 8 }: { px?: number }) {
   const GRID = 16;
@@ -176,9 +183,12 @@ const pixelBtn = (color: string, bg: string) => ({
   gap: '0.65rem',
 });
 
+// ── Onboarding Screen ──────────────────────────────────────────
+
 function OnboardingScreen({ onStart }: { onStart: (q: string) => void }) {
   const [q, setQ] = useState('');
   const start = () => { if (q.trim()) onStart(q.trim()); };
+
   return (
     <motion.div
       className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
@@ -203,54 +213,101 @@ function OnboardingScreen({ onStart }: { onStart: (q: string) => void }) {
           transition={{ duration: s.dur, delay: s.delay, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
+
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse 75% 75% at 50% 50%, transparent 20%, #0c0a18 90%)' }} />
+
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 w-full max-w-[340px]">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
-          style={{ filter: 'drop-shadow(0 0 18px rgba(0,255,194,0.35))' }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'linear' }}
+          style={{ filter: 'drop-shadow(0 0 18px rgba(0,255,194,0.35))' }}
+        >
           <PixelWheelArt px={10} />
         </motion.div>
+
         <div className="text-center space-y-1">
-          <p className="font-mono text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(0,255,194,0.55)' }}>C.Voigt ❆ B.Mertens</p>
+          <p className="font-mono text-[9px] tracking-[0.55em] uppercase" style={{ color: 'rgba(0,255,194,0.55)' }}>
+            C.Voigt ❆ B.Mertens
+          </p>
           <h1 className="font-black uppercase font-mono leading-none text-white"
-            style={{ fontSize: 'clamp(1.7rem, 7vw, 2.4rem)', letterSpacing: '0.1em' }}>LITERACY<br />SPIN</h1>
-          <p className="font-mono font-bold tracking-[0.35em] text-lg" style={{ color: '#FFD93D' }}>SS 2026</p>
+            style={{ fontSize: 'clamp(1.7rem, 7vw, 2.4rem)', letterSpacing: '0.1em' }}>
+            LITERACY<br />SPIN
+          </h1>
+          <p className="font-mono font-bold tracking-[0.35em] text-lg" style={{ color: '#FFD93D' }}>
+            SS 2026
+          </p>
         </div>
+
         <div className="w-full" style={{
           background: 'linear-gradient(145deg,#1c1732 0%,#130f26 100%)',
           border: '2px solid rgba(255,255,255,0.1)',
           boxShadow: '4px 4px 0 rgba(0,255,194,0.1), 8px 8px 0 rgba(0,0,0,0.5)',
           padding: '1.5rem',
         }}>
-          <p className="font-mono text-[10px] uppercase tracking-[0.4em] mb-3" style={{ color: 'rgba(255,255,255,0.38)' }}>▶ Worüber stimmt ihr heute ab?</p>
-          <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && start()}
-            placeholder="Eure Frage eingeben…" maxLength={80} autoFocus
+          <p className="font-mono text-[10px] uppercase tracking-[0.4em] mb-3"
+            style={{ color: 'rgba(255,255,255,0.38)' }}>
+            ▶ Worüber stimmt ihr heute ab?
+          </p>
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && start()}
+            placeholder="Eure Frage eingeben…"
+            maxLength={80}
+            autoFocus
             className="w-full text-sm text-white font-mono focus:outline-none"
-            style={{ background: 'rgba(0,0,0,0.38)', border: '2px solid rgba(255,255,255,0.12)', padding: '0.7rem 1rem', borderRadius: 0, caretColor: '#00FFC2' }}
+            style={{
+              background: 'rgba(0,0,0,0.38)',
+              border: '2px solid rgba(255,255,255,0.12)',
+              padding: '0.7rem 1rem',
+              borderRadius: 0,
+              transition: 'border-color 0.18s',
+              caretColor: '#00FFC2',
+            }}
             onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,255,194,0.5)'; }}
             onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
           />
-          <motion.button onClick={start} disabled={!q.trim()}
+          <motion.button
+            onClick={start}
+            disabled={!q.trim()}
             whileHover={q.trim() ? { x: 1, y: 1, boxShadow: '3px 3px 0 rgba(0,255,194,0.16)' } : {}}
             whileTap={q.trim() ? { x: 4, y: 4, boxShadow: '0px 0px 0 rgba(0,255,194,0.16)' } : {}}
             className="w-full font-black font-mono uppercase disabled:opacity-25 disabled:cursor-not-allowed"
-            style={{ marginTop: '0.65rem', padding: '0.75rem 1rem', background: q.trim() ? 'rgba(0,255,194,0.09)' : 'transparent',
-              border: '2px solid #00FFC2', color: '#00FFC2', letterSpacing: '0.38em', fontSize: '0.72rem',
-              boxShadow: q.trim() ? '4px 4px 0 rgba(0,255,194,0.16)' : 'none', borderRadius: 0 }}>
+            style={{
+              marginTop: '0.65rem',
+              padding: '0.75rem 1rem',
+              background: q.trim() ? 'rgba(0,255,194,0.09)' : 'transparent',
+              border: '2px solid #00FFC2',
+              color: '#00FFC2',
+              letterSpacing: '0.38em',
+              fontSize: '0.72rem',
+              boxShadow: q.trim() ? '4px 4px 0 rgba(0,255,194,0.16)' : 'none',
+              borderRadius: 0,
+            }}
+          >
             LOS GEHT'S →
           </motion.button>
         </div>
-        <p className="font-mono text-[9px] tracking-[0.4em] uppercase text-center" style={{ color: 'rgba(255,255,255,0.13)' }}>↵ Enter · Abstimmung starten</p>
+
+        <p className="font-mono text-[9px] tracking-[0.4em] uppercase text-center"
+          style={{ color: 'rgba(255,255,255,0.13)' }}>
+          ↵ Enter · Abstimmung starten
+        </p>
       </div>
     </motion.div>
   );
 }
+
+// ── Default options ────────────────────────────────────────────
 
 const DEFAULT_OPTIONS: Option[] = [
   { id: 1, label: 'Option A', votes: 0 },
   { id: 2, label: 'Option B', votes: 0 },
   { id: 3, label: 'Option C', votes: 0 },
 ];
+
+// ── Main VotingWheel (Admin) ───────────────────────────────────
 
 export default function VotingWheel() {
   const [screen, setScreen] = useState<'onboarding' | 'voting'>('onboarding');
@@ -261,6 +318,8 @@ export default function VotingWheel() {
   const [isRevealing, setIsRevealing] = useState(false);
   const [winner, setWinner] = useState<Slice | null>(null);
   const [explodeKey, setExplodeKey] = useState(0);
+  const [votedFor, setVotedFor] = useState<number | null>(null);
+  const [voteSessionId, setVoteSessionId] = useState('');
 
   const rotation = useMotionValue(0);
   const [, animateValue] = useAnimate();
@@ -271,16 +330,28 @@ export default function VotingWheel() {
   const prevRotSlot = useRef(0);
   useEffect(() => { optionsRef.current = options; }, [options]);
 
+  // Load existing session from Firebase on mount
   useEffect(() => {
     get(ref(db, 'session')).then(snap => {
       const data = snap.val();
       if (!data) return;
-      if (data.question) { setQuestion(data.question); setScreen('voting'); }
+      if (data.question) {
+        setQuestion(data.question);
+        setScreen('voting');
+      }
       if (data.options && Array.isArray(data.options) && data.options.length > 0) {
         setOptions(data.options);
-        nextId.current = Math.max(...data.options.map((o: Option) => o.id)) + 1;
+        const maxId = Math.max(...data.options.map((o: Option) => o.id));
+        nextId.current = maxId + 1;
       }
-      if (typeof data.currentAngle === 'number') rotation.set(data.currentAngle);
+      if (typeof data.currentAngle === 'number') {
+        rotation.set(data.currentAngle);
+      }
+      if (typeof data.voteSessionId === 'string' && data.voteSessionId) {
+        setVoteSessionId(data.voteSessionId);
+        const stored = localStorage.getItem(`ls_voted_${data.voteSessionId}`);
+        if (stored) setVotedFor(Number(stored));
+      }
     }).catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -299,10 +370,16 @@ export default function VotingWheel() {
 
   const revealWinner = useCallback((w: Slice) => {
     setIsRevealing(true);
-    writeSession({ winner: { id: w.id, label: w.label, color: w.color, votes: w.votes }, showWinner: true });
+    // Broadcast winner to Firebase so viewers see it too
+    writeSession({
+      winner: { id: w.id, label: w.label, color: w.color, votes: w.votes },
+      showWinner: true,
+    });
     const ctx = getCtx(audioCtxRef);
     if (ctx) {
-      playDrumRoll(ctx, 2.2, () => { setIsRevealing(false); setWinner(w); setExplodeKey(k => k + 1); playFanfare(ctx); });
+      playDrumRoll(ctx, 2.2, () => {
+        setIsRevealing(false); setWinner(w); setExplodeKey(k => k + 1); playFanfare(ctx);
+      });
     } else {
       setTimeout(() => { setIsRevealing(false); setWinner(w); setExplodeKey(k => k + 1); }, 2200);
     }
@@ -316,7 +393,10 @@ export default function VotingWheel() {
     revealWinner(s.find(sl => pointerAt >= sl.start && pointerAt < sl.start + sl.sweep) ?? s[0]);
   }, [rotation, revealWinner]);
 
-  const closeWinner = () => { setWinner(null); writeSession({ showWinner: false }); };
+  const closeWinner = () => {
+    setWinner(null);
+    writeSession({ showWinner: false });
+  };
 
   const spinWheel = () => {
     if (isSpinning || isRevealing) return;
@@ -325,7 +405,16 @@ export default function VotingWheel() {
     const startAngle = rotation.get();
     const targetAngle = startAngle + 1440 + Math.random() * 720;
     const durationMs = 6000;
-    set(ref(db, 'session/spin'), { active: true, startAngle, targetAngle, durationMs, startedAt: Date.now() }).catch(console.error);
+
+    // Broadcast spin event to Firebase — viewers animate to the same target
+    set(ref(db, 'session/spin'), {
+      active: true,
+      startAngle,
+      targetAngle,
+      durationMs,
+      startedAt: Date.now(),
+    }).catch(console.error);
+
     animRef.current = animateValue(rotation, targetAngle, {
       duration: durationMs / 1000,
       ease: [0.05, 0.82, 0.22, 1],
@@ -352,213 +441,366 @@ export default function VotingWheel() {
     const label = newLabel.trim();
     if (!label || options.length >= 8) return;
     const newOptions = [...options, { id: nextId.current++, label, votes: 0 }];
-    setOptions(newOptions); setNewLabel(''); writeOptions(newOptions);
+    setOptions(newOptions);
+    setNewLabel('');
+    writeOptions(newOptions);
   };
-  const castVote = (id: number) => { const o = options.map(o => o.id === id ? { ...o, votes: o.votes + 1 } : o); setOptions(o); writeOptions(o); };
-  const removeOption = (id: number) => { if (options.length <= 2) return; const o = options.filter(o => o.id !== id); setOptions(o); writeOptions(o); };
-  const resetVotes = () => { const o = options.map(o => ({ ...o, votes: 0 })); setOptions(o); writeOptions(o); };
+
+  const castVote = (id: number) => {
+    if (votedFor !== null || !voteSessionId) return;
+    localStorage.setItem(`ls_voted_${voteSessionId}`, String(id));
+    setVotedFor(id);
+    runTransaction(ref(db, 'session/options'), (current) => {
+      if (current === null) return current;
+      const opts: Option[] = Array.isArray(current) ? current : Object.values(current);
+      return opts.map((o: Option) => o.id === id ? { ...o, votes: (o.votes || 0) + 1 } : o);
+    }).catch(console.error);
+  };
+
+  const removeOption = (id: number) => {
+    if (options.length <= 2) return;
+    const newOptions = options.filter(o => o.id !== id);
+    setOptions(newOptions);
+    writeOptions(newOptions);
+  };
+
+  const resetVotes = () => {
+    const newVoteSessionId = crypto.randomUUID();
+    const newOptions = options.map(o => ({ ...o, votes: 0 }));
+    setOptions(newOptions);
+    if (voteSessionId) localStorage.removeItem(`ls_voted_${voteSessionId}`);
+    setVotedFor(null);
+    setVoteSessionId(newVoteSessionId);
+    update(ref(db, 'session'), { options: newOptions, voteSessionId: newVoteSessionId }).catch(console.error);
+  };
 
   const handleStart = (q: string) => {
-    setQuestion(q); setScreen('voting');
-    set(ref(db, 'session'), { question: q, screen: 'voting', options, currentAngle: rotation.get(), spin: null, winner: null, showWinner: false }).catch(console.error);
+    setQuestion(q);
+    setScreen('voting');
+    const newVoteSessionId = crypto.randomUUID();
+    setVoteSessionId(newVoteSessionId);
+    setVotedFor(null);
+    set(ref(db, 'session'), {
+      question: q,
+      screen: 'voting',
+      options,
+      currentAngle: rotation.get(),
+      spin: null,
+      winner: null,
+      showWinner: false,
+      voteSessionId: newVoteSessionId,
+    }).catch(console.error);
   };
 
-  const handleChangeQuestion = () => { setScreen('onboarding'); writeSession({ screen: 'onboarding' }); };
+  const handleChangeQuestion = () => {
+    setScreen('onboarding');
+    writeSession({ screen: 'onboarding' });
+  };
 
   return (
     <>
       <AnimatePresence>
-        {screen === 'onboarding' && <OnboardingScreen onStart={handleStart} />}
+        {screen === 'onboarding' && (
+          <OnboardingScreen onStart={handleStart} />
+        )}
       </AnimatePresence>
 
+      {/* Drum roll overlay */}
       <AnimatePresence>
         {isRevealing && (
-          <motion.div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm gap-6"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="text-[11px] font-mono uppercase tracking-[0.5em]" style={{ color: '#00FFC2' }}
-              animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.6, repeat: Infinity }}>Trommelwirbel...</motion.div>
+          <motion.div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm gap-6"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div className="text-[11px] font-mono uppercase tracking-[0.5em]"
+              style={{ color: '#00FFC2' }}
+              animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 0.6, repeat: Infinity }}>
+              Trommelwirbel...
+            </motion.div>
             <div className="flex gap-2">
               {[0,1,2,3,4].map(i => (
                 <motion.div key={i} className="w-2 h-8" style={{ background: '#00FFC2' }}
-                  animate={{ scaleY: [0.3, 1, 0.3] }} transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.08 }} />
+                  animate={{ scaleY: [0.3, 1, 0.3] }}
+                  transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.08 }} />
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Winner overlay */}
       <AnimatePresence>
         {winner && (
-          <motion.div key={`overlay-${explodeKey}`} className="fixed inset-0 z-50 flex items-center justify-center"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div key={`overlay-${explodeKey}`}
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
             <motion.div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={closeWinner} />
             {PARTICLES.map(p => (
               <motion.div key={`p-${p.id}-${explodeKey}`} className="absolute pointer-events-none"
-                style={{ width: p.size, height: p.size, backgroundColor: p.color, left: '50%', top: '50%', marginLeft: -p.size/2, marginTop: -p.size/2 }}
+                style={{ width: p.size, height: p.size, backgroundColor: p.color, left: '50%', top: '50%', marginLeft: -p.size / 2, marginTop: -p.size / 2 }}
                 initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
-                animate={{ x: Math.cos(p.angle*Math.PI/180)*p.dist, y: Math.sin(p.angle*Math.PI/180)*p.dist, scale: [0,1.8,0.6,0], opacity: [1,1,0.6,0] }}
+                animate={{ x: Math.cos(p.angle * Math.PI / 180) * p.dist, y: Math.sin(p.angle * Math.PI / 180) * p.dist, scale: [0, 1.8, 0.6, 0], opacity: [1, 1, 0.6, 0] }}
                 transition={{ duration: 1.5, delay: p.delay, ease: 'easeOut' }} />
             ))}
-            {[...Array(8)].map((_,i) => (
+            {[...Array(8)].map((_, i) => (
               <motion.div key={`ring-${i}-${explodeKey}`} className="absolute pointer-events-none border-2"
-                style={{ width: 20, height: 20, borderColor: COLORS[i%COLORS.length], left:'50%', top:'50%', marginLeft:-10, marginTop:-10, borderRadius:'50%' }}
-                initial={{ scale: 0, opacity: 0.8 }} animate={{ scale: 8+i*3, opacity: 0 }}
-                transition={{ duration: 1.2, delay: i*0.06, ease: 'easeOut' }} />
+                style={{ width: 20, height: 20, borderColor: COLORS[i % COLORS.length], left: '50%', top: '50%', marginLeft: -10, marginTop: -10, borderRadius: '50%' }}
+                initial={{ scale: 0, opacity: 0.8 }}
+                animate={{ scale: 8 + i * 3, opacity: 0 }}
+                transition={{ duration: 1.2, delay: i * 0.06, ease: 'easeOut' }} />
             ))}
-            <motion.div className="relative z-10 text-center px-12 py-10 bg-[#0c0a18] max-w-md mx-4 w-full"
-              style={{ borderWidth:2, borderStyle:'solid', borderColor:winner.color, boxShadow:`0 0 60px ${winner.color}40, 6px 6px 0 ${winner.color}18` }}
-              initial={{ scale:0.3, opacity:0, y:60 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.8, opacity:0 }}
-              transition={{ type:'spring', stiffness:280, damping:18, delay:0.1 }} onClick={e => e.stopPropagation()}>
-              <button onClick={closeWinner} className="absolute top-4 right-4 p-1.5" style={{ color: 'rgba(255,255,255,0.2)' }}
-                onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.6)';}}
-                onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.2)';}}>  
+            <motion.div
+              className="relative z-10 text-center px-12 py-10 bg-[#0c0a18] max-w-md mx-4 w-full"
+              style={{ borderWidth: 2, borderStyle: 'solid', borderColor: winner.color, boxShadow: `0 0 60px ${winner.color}40, 6px 6px 0 ${winner.color}18` }}
+              initial={{ scale: 0.3, opacity: 0, y: 60 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.1 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={closeWinner}
+                className="absolute top-4 right-4 p-1.5 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.2)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.2)'; }}
+              >
                 <X className="w-4 h-4" />
               </button>
               <motion.div className="text-[11px] font-mono uppercase tracking-[0.4em] mb-4" style={{ color: winner.color }}
-                initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}>✶ Gewinner ✶</motion.div>
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                ✶ Gewinner ✶
+              </motion.div>
               {question && (
                 <motion.div className="text-base text-white/75 font-medium mb-6 leading-relaxed"
-                  initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.35 }}>„{question}“</motion.div>
-              )}
-              <motion.div className="font-black uppercase leading-none mb-4 font-mono"
-                style={{ color:winner.color, fontSize:'clamp(2.5rem,10vw,4rem)' }}
-                initial={{ scale:0.4, opacity:0 }} animate={{ scale:[0.4,1.15,1], opacity:1 }}
-                transition={{ type:'spring', stiffness:300, damping:15, delay:0.25 }}>{winner.label}</motion.div>
-              {winner.votes > 0 && (
-                <motion.div className="font-mono text-sm" style={{ color:'rgba(255,255,255,0.3)' }}
-                  initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.5 }}>
-                  {winner.votes} Stimme{winner.votes!==1?'n':''}{totalVotes>0&&` · ${Math.round((winner.votes/totalVotes)*100)} %`}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
+                  „{question}“
                 </motion.div>
               )}
-              <motion.button onClick={closeWinner} className="mt-8 font-mono text-[11px] uppercase tracking-widest"
-                style={{ padding:'0.5rem 1.5rem', border:'2px solid rgba(255,255,255,0.1)', color:'rgba(255,255,255,0.3)', borderRadius:0, background:'transparent' }}
-                onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.7)';e.currentTarget.style.borderColor='rgba(255,255,255,0.3)';}}
-                onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.3)';e.currentTarget.style.borderColor='rgba(255,255,255,0.1)';}}
-                initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.6 }}>Schließen</motion.button>
+              <motion.div className="font-black uppercase leading-none mb-4 font-mono"
+                style={{ color: winner.color, fontSize: 'clamp(2.5rem, 10vw, 4rem)' }}
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: [0.4, 1.15, 1], opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.25 }}
+              >
+                {winner.label}
+              </motion.div>
+              {winner.votes > 0 && (
+                <motion.div className="font-mono text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+                  {winner.votes} Stimme{winner.votes !== 1 ? 'n' : ''}
+                  {totalVotes > 0 && ` · ${Math.round((winner.votes / totalVotes) * 100)} %`}
+                </motion.div>
+              )}
+              <motion.button
+                onClick={closeWinner}
+                className="mt-8 font-mono text-[11px] uppercase tracking-widest transition-all"
+                style={{ padding: '0.5rem 1.5rem', border: '2px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)', borderRadius: 0, background: 'transparent' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+              >
+                Schließen
+              </motion.button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* ── Voting Screen ── */}
       {screen === 'voting' && (
         <>
           {STARS.map(s => (
             <motion.div key={`vs-${s.id}`} className="fixed pointer-events-none"
-              style={{ left:`${s.x}%`, top:`${s.y}%`, width:s.size, height:s.size, backgroundColor:s.color, imageRendering:'pixelated', zIndex:1 }}
-              animate={{ opacity:[0.06,0.5,0.06], scale:[1,1.25,1] }}
-              transition={{ duration:s.dur, delay:s.delay, repeat:Infinity, ease:'easeInOut' }} />
+              style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, backgroundColor: s.color, imageRendering: 'pixelated', zIndex: 1 }}
+              animate={{ opacity: [0.06, 0.5, 0.06], scale: [1, 1.25, 1] }}
+              transition={{ duration: s.dur, delay: s.delay, repeat: Infinity, ease: 'easeInOut' }}
+            />
           ))}
-          <section className="relative" style={{ zIndex:10 }}>
-            <motion.div className="mb-10" initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.5 }}>
-              <span className="text-[9px] font-mono uppercase tracking-[0.45em] mb-2 block" style={{ color:'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
-              <div style={{ background:'rgba(0,255,194,0.04)', border:'2px solid rgba(0,255,194,0.2)', boxShadow:'3px 3px 0 rgba(0,255,194,0.07)' }}>
+
+          <section className="relative" style={{ zIndex: 10 }}>
+            {/* Question banner */}
+            <motion.div className="mb-10"
+              initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <span className="text-[9px] font-mono uppercase tracking-[0.45em] mb-2 block"
+                style={{ color: 'rgba(255,255,255,0.3)' }}>Abstimmungsfrage</span>
+              <div style={{ background: 'rgba(0,255,194,0.04)', border: '2px solid rgba(0,255,194,0.2)', boxShadow: '3px 3px 0 rgba(0,255,194,0.07)' }}>
                 <div className="px-5 py-4 flex items-start gap-3">
-                  <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color:'rgba(0,255,194,0.6)' }}>▶</span>
+                  <span className="font-mono text-lg leading-none mt-0.5 shrink-0" style={{ color: 'rgba(0,255,194,0.6)' }}>▶</span>
                   <p className="text-white text-lg font-semibold leading-snug">{question}</p>
                 </div>
-                <button onClick={handleChangeQuestion}
+                <button
+                  onClick={handleChangeQuestion}
                   className="w-full py-3 flex items-center justify-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.35em] font-black transition-all"
-                  style={{ borderTop:'2px solid rgba(255,211,61,0.25)', color:'#FFD93D', background:'rgba(255,211,61,0.06)' }}
-                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,211,61,0.14)';}}
-                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,211,61,0.06)';}}>  
-                  <Pencil className="w-3.5 h-3.5" /> Frage ändern
+                  style={{ borderTop: '2px solid rgba(255,211,61,0.25)', color: '#FFD93D', background: 'rgba(255,211,61,0.06)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,211,61,0.14)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,211,61,0.06)'; }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Frage ändern
                 </button>
               </div>
             </motion.div>
+
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
+              {/* Wheel column */}
               <div className="flex flex-col items-center gap-6">
-                <div className="relative w-[400px] max-w-full" style={{ padding:'10px', background:'rgba(0,0,0,0.18)', border:'2px solid rgba(255,255,255,0.06)', boxShadow:'4px 4px 0 rgba(0,0,0,0.4)' }}>
-                  <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-20 pointer-events-none" style={{ filter:'drop-shadow(0 0 8px #00FFC2)' }}>
-                    <svg width="24" height="18" viewBox="0 0 24 18"><polygon points="0,0 24,0 12,18" fill="#00FFC2" /></svg>
+                <div className="relative w-[400px] max-w-full" style={{
+                  padding: '10px',
+                  background: 'rgba(0,0,0,0.18)',
+                  border: '2px solid rgba(255,255,255,0.06)',
+                  boxShadow: '4px 4px 0 rgba(0,0,0,0.4)',
+                }}>
+                  <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                    style={{ filter: 'drop-shadow(0 0 8px #00FFC2)' }}>
+                    <svg width="24" height="18" viewBox="0 0 24 18">
+                      <polygon points="0,0 24,0 12,18" fill="#00FFC2" />
+                    </svg>
                   </div>
-                  <motion.div style={{ rotate:rotation, transformOrigin:'center center' }}>
+                  <motion.div style={{ rotate: rotation, transformOrigin: 'center center' }}>
                     <svg viewBox="0 0 400 400" className="w-full drop-shadow-xl">
-                      <circle cx={CX} cy={CY} r={R+12} fill="none" stroke="#00FFC210" strokeWidth="20" />
-                      <circle cx={CX} cy={CY} r={R+2} fill="none" stroke="#00FFC230" strokeWidth="1.5" />
-                      {slices.map(s => <path key={s.id} d={pieSlicePath(CX,CY,R,s.start,s.start+s.sweep)} fill={s.color} fillOpacity={0.9} stroke="#0c0a18" strokeWidth="2" />)}
-                      {slices.map(s => { if(s.sweep<22) return null; const mid=angleToXY(CX,CY,R*0.62,s.start+s.sweep/2); return <text key={`lbl-${s.id}`} x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle" fill="#0c0a18" fontSize="11" fontWeight="700" fontFamily="monospace" style={{userSelect:'none'}}>{s.label.length>9?s.label.slice(0,9)+'…':s.label}</text>;})}
-                      {slices.map(s => { if(s.sweep<35||s.votes===0) return null; const mid=angleToXY(CX,CY,R*0.62,s.start+s.sweep/2); return <text key={`cnt-${s.id}`} x={mid.x} y={mid.y+13} textAnchor="middle" dominantBaseline="middle" fill="#0c0a1888" fontSize="9" fontWeight="600" fontFamily="monospace" style={{userSelect:'none'}}>{s.votes}</text>;})}
+                      <circle cx={CX} cy={CY} r={R + 12} fill="none" stroke="#00FFC210" strokeWidth="20" />
+                      <circle cx={CX} cy={CY} r={R + 2} fill="none" stroke="#00FFC230" strokeWidth="1.5" />
+                      {slices.map(s => (
+                        <path key={s.id} d={pieSlicePath(CX, CY, R, s.start, s.start + s.sweep)}
+                          fill={s.color} fillOpacity={0.9} stroke="#0c0a18" strokeWidth="2" />
+                      ))}
+                      {slices.map(s => {
+                        if (s.sweep < 22) return null;
+                        const mid = angleToXY(CX, CY, R * 0.62, s.start + s.sweep / 2);
+                        return <text key={`lbl-${s.id}`} x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle"
+                          fill="#0c0a18" fontSize="11" fontWeight="700" fontFamily="monospace"
+                          style={{ userSelect: 'none' }}>
+                          {s.label.length > 9 ? s.label.slice(0, 9) + '…' : s.label}
+                        </text>;
+                      })}
+                      {slices.map(s => {
+                        if (s.sweep < 35 || s.votes === 0) return null;
+                        const mid = angleToXY(CX, CY, R * 0.62, s.start + s.sweep / 2);
+                        return <text key={`cnt-${s.id}`} x={mid.x} y={mid.y + 13} textAnchor="middle"
+                          dominantBaseline="middle" fill="#0c0a1888" fontSize="9" fontWeight="600"
+                          fontFamily="monospace" style={{ userSelect: 'none' }}>{s.votes}</text>;
+                      })}
                       <circle cx={CX} cy={CY} r={24} fill="#0c0a18" stroke="#00FFC2" strokeWidth="1.5" />
                       <circle cx={CX} cy={CY} r={8} fill="#00FFC2" />
                     </svg>
                   </motion.div>
                 </div>
+
                 <AnimatePresence mode="wait">
                   {!isSpinning ? (
                     <motion.button key="spin" onClick={spinWheel} disabled={isRevealing}
-                      style={{ ...pixelBtn('#00FFC2','rgba(0,255,194,0.07)'), opacity:isRevealing?0.3:1 }}
-                      whileHover={!isRevealing?{x:1,y:1,boxShadow:'3px 3px 0 rgba(0,255,194,0.22)'}:{}}
-                      whileTap={!isRevealing?{x:4,y:4,boxShadow:'0px 0px 0 rgba(0,255,194,0.22)'}:{}}
-                      initial={{ opacity:0, y:8 }} animate={{ opacity:isRevealing?0.3:1, y:0 }} exit={{ opacity:0, y:-8 }}>
+                      style={{ ...pixelBtn('#00FFC2', 'rgba(0,255,194,0.07)'), opacity: isRevealing ? 0.3 : 1 }}
+                      whileHover={!isRevealing ? { x: 1, y: 1, boxShadow: '3px 3px 0 rgba(0,255,194,0.22)' } : {}}
+                      whileTap={!isRevealing ? { x: 4, y: 4, boxShadow: '0px 0px 0 rgba(0,255,194,0.22)' } : {}}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: isRevealing ? 0.3 : 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                    >
                       <Play className="w-4 h-4 fill-current" /> Rad drehen
                     </motion.button>
                   ) : (
-                    <motion.button key="stop" onClick={stopWheel} style={pixelBtn('#FF6B6B','rgba(255,107,107,0.07)')}
-                      whileHover={{x:1,y:1,boxShadow:'3px 3px 0 rgba(255,107,107,0.22)'}}
-                      whileTap={{x:4,y:4,boxShadow:'0px 0px 0 rgba(255,107,107,0.22)'}}
-                      initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}>
+                    <motion.button key="stop" onClick={stopWheel}
+                      style={pixelBtn('#FF6B6B', 'rgba(255,107,107,0.07)')}
+                      whileHover={{ x: 1, y: 1, boxShadow: '3px 3px 0 rgba(255,107,107,0.22)' }}
+                      whileTap={{ x: 4, y: 4, boxShadow: '0px 0px 0 rgba(255,107,107,0.22)' }}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                    >
                       <Square className="w-4 h-4 fill-current" /> Stopp
                     </motion.button>
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* Options column */}
               <div className="space-y-3">
-                <div className="font-mono text-[10px] uppercase tracking-[0.4em] mb-5" style={{ color:'rgba(255,255,255,0.55)' }}>Optionen &amp; Stimmen // {options.length} / 8</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.4em] mb-5"
+                  style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  Optionen &amp; Stimmen // {options.length} / 8
+                </div>
+
                 <AnimatePresence mode="popLayout">
-                  {options.map((opt,i) => (
-                    <motion.div key={opt.id} layout className="flex items-center gap-3 p-4"
-                      style={{ background:'rgba(255,255,255,0.025)', borderWidth:2, borderStyle:'solid', borderColor:'rgba(255,255,255,0.1)', boxShadow:'2px 2px 0 rgba(0,0,0,0.3)' }}
-                      initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}
-                      whileHover={{ borderColor:'rgba(255,255,255,0.22)', background:'rgba(255,255,255,0.04)' }}>
-                      <div className="w-2.5 h-2.5 flex-shrink-0" style={{ backgroundColor:COLORS[i%COLORS.length] }} />
+                  {options.map((opt, i) => (
+                    <motion.div key={opt.id} layout
+                      className="flex items-center gap-3 p-4"
+                      style={{ background: 'rgba(255,255,255,0.025)', borderWidth: 2, borderStyle: 'solid', borderColor: 'rgba(255,255,255,0.1)', boxShadow: '2px 2px 0 rgba(0,0,0,0.3)' }}
+                      initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                      whileHover={{ borderColor: 'rgba(255,255,255,0.22)', background: 'rgba(255,255,255,0.04)' }}
+                    >
+                      <div className="w-2.5 h-2.5 flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                       <span className="flex-1 text-sm font-medium text-white truncate min-w-0">{opt.label}</span>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="w-20 h-1 overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
-                          <motion.div className="h-full" animate={{ width:totalVotes>0?`${(opt.votes/totalVotes)*100}%`:'0%' }} transition={{ duration:0.5 }} style={{ backgroundColor:COLORS[i%COLORS.length] }} />
+                        <div className="w-20 h-1 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <motion.div className="h-full"
+                            animate={{ width: totalVotes > 0 ? `${(opt.votes / totalVotes) * 100}%` : '0%' }}
+                            transition={{ duration: 0.5 }}
+                            style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                         </div>
-                        <span className="text-xs font-mono w-6 text-right" style={{ color:'rgba(255,255,255,0.4)' }}>{opt.votes}</span>
+                        <span className="text-xs font-mono w-6 text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                          {opt.votes}
+                        </span>
                       </div>
-                      <button onClick={() => castVote(opt.id)} className="px-3 py-1.5 text-[11px] font-black uppercase tracking-widest flex-shrink-0 transition-all"
-                        style={{ border:'2px solid rgba(0,255,194,0.35)', background:'rgba(0,255,194,0.05)', color:'#00FFC2', boxShadow:'2px 2px 0 rgba(0,255,194,0.1)' }}
-                        onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,255,194,0.12)';}}
-                        onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,255,194,0.05)';}}>
-                        +1
+                      <button
+                        onClick={() => castVote(opt.id)}
+                        disabled={votedFor !== null}
+                        className="px-3 py-1.5 text-[11px] font-black uppercase tracking-widest flex-shrink-0 transition-all disabled:cursor-not-allowed"
+                        style={{
+                          border: `2px solid ${votedFor === opt.id ? COLORS[options.findIndex(o=>o.id===opt.id) % COLORS.length] : 'rgba(0,255,194,0.35)'}`,
+                          background: votedFor === opt.id ? `${COLORS[options.findIndex(o=>o.id===opt.id) % COLORS.length]}22` : votedFor !== null ? 'rgba(255,255,255,0.03)' : 'rgba(0,255,194,0.05)',
+                          color: votedFor === opt.id ? COLORS[options.findIndex(o=>o.id===opt.id) % COLORS.length] : votedFor !== null ? 'rgba(255,255,255,0.2)' : '#00FFC2',
+                          boxShadow: votedFor === opt.id ? `2px 2px 0 ${COLORS[options.findIndex(o=>o.id===opt.id) % COLORS.length]}33` : 'none',
+                          minWidth: '4.5rem',
+                        }}
+                      >
+                        {votedFor === opt.id ? '✓ Du' : votedFor !== null ? '—' : 'Wählen'}
                       </button>
                       {options.length > 2 && (
-                        <button onClick={() => removeOption(opt.id)} className="p-1 flex-shrink-0 transition-colors" style={{ color:'rgba(255,255,255,0.12)' }}
-                          onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,107,107,0.7)';}}
-                          onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.12)';}}>  
+                        <button onClick={() => removeOption(opt.id)}
+                          className="p-1 flex-shrink-0 transition-colors"
+                          style={{ color: 'rgba(255,255,255,0.12)' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,107,107,0.7)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.12)'; }}
+                        >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </motion.div>
                   ))}
                 </AnimatePresence>
+
                 {options.length < 8 && (
                   <div className="flex gap-2 pt-2">
                     <input type="text" value={newLabel} onChange={e => setNewLabel(e.target.value)}
-                      onKeyDown={e => e.key==='Enter' && addOption()}
+                      onKeyDown={e => e.key === 'Enter' && addOption()}
                       placeholder="Neue Option hinzufügen…" maxLength={25}
                       className="flex-1 min-w-0 text-sm text-white font-mono focus:outline-none"
-                      style={{ background:'rgba(0,0,0,0.35)', border:'2px solid rgba(255,255,255,0.12)', padding:'0.6rem 1rem', borderRadius:0, caretColor:'#00FFC2' }}
-                      onFocus={e=>{e.currentTarget.style.borderColor='rgba(0,255,194,0.45)';}}
-                      onBlur={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,0.12)';}} />
-                    <button onClick={addOption} disabled={!newLabel.trim()} className="p-2.5 flex-shrink-0 disabled:opacity-30 transition-all"
-                      style={{ border:'2px solid rgba(0,255,194,0.3)', background:'rgba(0,255,194,0.05)', color:'#00FFC2', boxShadow:'2px 2px 0 rgba(0,0,0,0.3)' }}
-                      onMouseEnter={e=>{e.currentTarget.style.background='rgba(0,255,194,0.12)';}}
-                      onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,255,194,0.05)';}}>  
+                      style={{ background: 'rgba(0,0,0,0.35)', border: '2px solid rgba(255,255,255,0.12)', padding: '0.6rem 1rem', borderRadius: 0, caretColor: '#00FFC2', transition: 'border-color 0.18s' }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,255,194,0.45)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+                    />
+                    <button onClick={addOption} disabled={!newLabel.trim()}
+                      className="p-2.5 flex-shrink-0 disabled:opacity-30 transition-all"
+                      style={{ border: '2px solid rgba(0,255,194,0.3)', background: 'rgba(0,255,194,0.05)', color: '#00FFC2', boxShadow: '2px 2px 0 rgba(0,0,0,0.3)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,255,194,0.12)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,255,194,0.05)'; }}
+                    >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 )}
-                <div className="flex items-center justify-between pt-4" style={{ borderTop:'1px solid rgba(255,255,255,0.06)' }}>
-                  <button onClick={resetVotes} className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-colors"
-                    style={{ color:'rgba(255,255,255,0.18)' }}
-                    onMouseEnter={e=>{e.currentTarget.style.color='rgba(255,255,255,0.5)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.color='rgba(255,255,255,0.18)';}}>  
+
+                <div className="flex items-center justify-between pt-4"
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <button onClick={resetVotes}
+                    className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.18)' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.18)'; }}
+                  >
                     <RotateCcw className="w-3 h-3" /> Stimmen zurücksetzen
                   </button>
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color:'rgba(255,255,255,0.18)' }}>∑ {totalVotes} Stimmen</div>
+                  <div className="text-[10px] font-mono uppercase tracking-widest"
+                    style={{ color: 'rgba(255,255,255,0.18)' }}>
+                    ∑ {totalVotes} Stimmen
+                  </div>
                 </div>
               </div>
             </div>
