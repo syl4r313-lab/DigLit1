@@ -239,6 +239,7 @@ export default function WheelViewer() {
   const prevExplodeRef = useRef(false);
   const [votedFor, setVotedFor] = useState<number | null>(null);
   const [voteSessionId, setVoteSessionId] = useState('');
+  const [winnerDismissed, setWinnerDismissed] = useState(false);
 
   const rotation = useMotionValue(0);
   const [, animate] = useAnimate();
@@ -304,6 +305,7 @@ export default function WheelViewer() {
         setWinner(data.winner);
       } else {
         setWinner(null);
+        setWinnerDismissed(false);
         prevExplodeRef.current = false;
       }
     });
@@ -343,7 +345,7 @@ export default function WheelViewer() {
 
       {/* Winner overlay */}
       <AnimatePresence>
-        {winner && (
+        {winner && !winnerDismissed && (
           <motion.div key={`overlay-${explodeKey}`}
             className="fixed inset-0 z-50 flex items-center justify-center"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -370,6 +372,16 @@ export default function WheelViewer() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.1 }}
             >
+              <button onClick={() => setWinnerDismissed(true)}
+                className="absolute top-4 right-4 p-1.5 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.2)' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.2)'; }}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square">
+                  <path d="M2 2L14 14M14 2L2 14"/>
+                </svg>
+              </button>
               <motion.div className="text-[11px] font-mono uppercase tracking-[0.4em] mb-4" style={{ color: winner.color }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 ✶ Gewinner ✶
@@ -377,7 +389,7 @@ export default function WheelViewer() {
               {question && (
                 <motion.div className="text-base text-white/75 font-medium mb-6 leading-relaxed"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
-                  „{question}“
+                  „{question}"
                 </motion.div>
               )}
               <motion.div className="font-black uppercase leading-none mb-4 font-mono"

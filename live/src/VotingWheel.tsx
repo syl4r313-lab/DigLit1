@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useAnimate, useMotionValueEvent } from 'framer-motion';
 import { Plus, Trash2, RotateCcw, Play, Square, X, Pencil } from 'lucide-react';
-import { ref, set, update, get, runTransaction } from 'firebase/database';
+import { ref, set, update, onValue, runTransaction } from 'firebase/database';
 import { db } from './firebase';
 import type { Option } from './types';
 
@@ -330,29 +330,30 @@ export default function VotingWheel() {
   const prevRotSlot = useRef(0);
   useEffect(() => { optionsRef.current = options; }, [options]);
 
-  // Load existing session from Firebase on mount
+  // Live-Sync mit Firebase — aktualisiert auch Admin-Screen wenn Teilnehmende abstimmen
   useEffect(() => {
-    get(ref(db, 'session')).then(snap => {
+    const unsub = onValue(ref(db, 'session'), (snap) => {
       const data = snap.val();
       if (!data) return;
-      if (data.question) {
-        setQuestion(data.question);
-        setScreen('voting');
-      }
+      if (data.question) setQuestion(data.question);
+      if (data.screen === 'voting') setScreen('voting');
       if (data.options && Array.isArray(data.options) && data.options.length > 0) {
         setOptions(data.options);
         const maxId = Math.max(...data.options.map((o: Option) => o.id));
-        nextId.current = maxId + 1;
+        if (maxId >= nextId.current) nextId.current = maxId + 1;
       }
-      if (typeof data.currentAngle === 'number') {
-        rotation.set(data.currentAngle);
-      }
+      if (typeof data.currentAngle === 'number') rotation.set(data.currentAngle);
       if (typeof data.voteSessionId === 'string' && data.voteSessionId) {
-        setVoteSessionId(data.voteSessionId);
-        const stored = localStorage.getItem(`ls_voted_${data.voteSessionId}`);
-        if (stored) setVotedFor(Number(stored));
+        setVoteSessionId(prev => {
+          if (prev !== data.voteSessionId) {
+            const stored = localStorage.getItem(`ls_voted_${data.voteSessionId}`);
+            setVotedFor(stored ? Number(stored) : null);
+          }
+          return data.voteSessionId;
+        });
       }
-    }).catch(console.error);
+    });
+    return () => unsub();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -480,10 +481,14 @@ export default function VotingWheel() {
     const newVoteSessionId = crypto.randomUUID();
     setVoteSessionId(newVoteSessionId);
     setVotedFor(null);
+    // Neue Frage = frische Optionen A/B/C ohne Stimmen
+    const freshOptions = DEFAULT_OPTIONS.map(o => ({ ...o, votes: 0 }));
+    setOptions(freshOptions);
+    nextId.current = 4;
     set(ref(db, 'session'), {
       question: q,
       screen: 'voting',
-      options,
+      options: freshOptions,
       currentAngle: rotation.get(),
       spin: null,
       winner: null,
@@ -574,7 +579,7 @@ export default function VotingWheel() {
               {question && (
                 <motion.div className="text-base text-white/75 font-medium mb-6 leading-relaxed"
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
-                  „{question}“
+                  „{question}"
                 </motion.div>
               )}
               <motion.div className="font-black uppercase leading-none mb-4 font-mono"
