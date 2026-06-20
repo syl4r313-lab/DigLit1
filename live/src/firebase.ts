@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey:            'AIzaSyCdg3mZSU6Laa8pfNWEDlgC92kCUDoIf6Q',
+  
   authDomain:        'literacyspin.firebaseapp.com',
   databaseURL:       'https://literacyspin-default-rtdb.europe-west1.firebasedatabase.app',
   projectId:         'literacyspin',
